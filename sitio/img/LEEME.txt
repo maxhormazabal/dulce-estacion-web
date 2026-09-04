@@ -1,0 +1,24 @@
+Carpeta para las imágenes del sitio. Está vacía a propósito.
+
+Qué va aquí:
+
+  logo.png        Logo de Dulce Estación (fondo transparente).
+                  En index.html hay un comentario marcando dónde
+                  reemplazar el texto por <img src="img/logo.png">.
+                  Aparece en dos lugares: el menú de arriba y el pie.
+
+  evento-1.jpg    Fotos de eventos para la galería. Son 6.
+  ...             En index.html cada una es un <figure class="foto">.
+  evento-6.jpg    Reemplazar por:
+                  <figure class="foto reveal">
+                    <img src="img/evento-1.jpg" alt="...">
+                    <figcaption>Texto</figcaption>
+                  </figure>
+
+  ig-1.jpg        Fotos del feed de Instagram. Son 6, cuadradas.
+  ...             En index.html cada una es un <a class="ig__post">.
+  ig-6.jpg
+
+Recomendaciones: fotos de máximo 1600 px de ancho y comprimidas
+(idealmente bajo 300 KB cada una). Las del feed de Instagram,
+cuadradas. Formato .webp si el hosting lo permite.
