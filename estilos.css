@@ -994,3 +994,30 @@ body.visor-abierto{ overflow:hidden; }
 .pin-evento--fuera span{ background:var(--gris); }
 .buscador__caja input::-webkit-search-cancel-button{ -webkit-appearance:none; display:none; }
 .resultado__row--big b small{ display:block; font-size:.8rem; font-weight:500; color:var(--gris); }
+
+/* ---------- Paso 3 del cotizador: ubicación ---------- */
+
+.buscador__campo{ display:block; font-size:.9rem; font-weight:500; margin:0 0 .4rem; }
+.btn-gps{
+  display:inline-flex; align-items:center; gap:.5rem; margin:.7rem 0 1rem; padding:.6rem 1rem;
+  font:600 .9rem var(--f-body); color:var(--rojo-osc); background:var(--rojo-claro);
+  border:1.5px solid transparent; border-radius:999px; cursor:pointer; transition:border-color .2s, background .2s;
+}
+.btn-gps:hover{ border-color:var(--rojo); }
+.btn-gps:disabled{ opacity:.7; cursor:progress; }
+.btn-gps.is-buscando svg{ animation:girar 1s linear infinite; }
+.btn-gps[hidden]{ display:none; }
+.ubicacion__mapa{ position:relative; z-index:0; isolation:isolate; border:1px solid var(--linea); border-radius:var(--r-md); overflow:hidden; background:var(--crema); }
+.ubicacion #mapa{ min-height:320px; height:320px; }
+.ubicacion .mapa__pie{ background:none; border:0; padding:.5rem .2rem 0; font-size:.78rem; }
+.ubicacion__resultado{
+  display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-top:1rem;
+  padding:1rem 1.2rem; background:var(--crema-suave); border:1px solid var(--linea); border-radius:var(--r-md);
+}
+.ubicacion__resultado span{ display:block; font-size:.75rem; text-transform:uppercase; letter-spacing:.06em; color:var(--gris); }
+.ubicacion__resultado p{ margin:.15rem 0 0; font-size:.92rem; color:var(--tinta); }
+.ubicacion__resultado b{ font-family:var(--f-body); font-weight:600; font-size:1.35rem; color:var(--rojo); text-align:right; flex:none; }
+.ubicacion__resultado b small{ display:block; font-size:.75rem; font-weight:500; color:var(--gris); }
+.ubicacion .hint{ margin:.6rem 0 .3rem; }
+.btn-texto{ background:none; border:0; padding:.3rem 0; font:500 .88rem var(--f-body); color:var(--rojo-osc); text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
+@media (max-width:560px){ .ubicacion #mapa{ height:280px; min-height:280px; } }

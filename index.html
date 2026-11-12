@@ -36,7 +36,7 @@
 <link rel="preload" href="fonts/montserrat.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/playfair-display.woff2" as="font" type="font/woff2" crossorigin>
 <!-- El ?v= obliga al navegador a recargar el archivo: si editas y no ves el cambio, súbele el número -->
-<link rel="stylesheet" href="estilos.css?v=69">
+<link rel="stylesheet" href="estilos.css?v=71">
 </head>
 <body>
 
@@ -184,52 +184,13 @@
   </div>
 </section>
 
-<!-- ============ TRASLADO ============ -->
-<section class="section" id="traslado">
-  <div class="wrap">
-    <div class="head reveal">
-
-      <h2>Calcula tu traslado</h2>
-      <p class="head__sub">Escribe la dirección del evento o toca tu sector en el mapa</p>
-    </div>
-
-    <div class="traslado reveal">
-      <div class="traslado__panel">
-        <div class="buscador">
-          <label class="field buscador__campo" for="direccion"><span>Dirección del evento</span></label>
-          <div class="buscador__caja">
-            <input type="search" id="direccion" placeholder="Ej: Barros Arana 1000, Concepción" autocomplete="off" enterkeyhint="search"
-              role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="sugerencias">
-            <ul class="buscador__lista" id="sugerencias" role="listbox" aria-label="Direcciones sugeridas" hidden></ul>
-          </div>
-          <p class="buscador__aviso" id="avisoBuscador" role="status" aria-live="polite" hidden></p>
-        </div>
-        <p class="hint" id="hintMapa" role="status" aria-live="polite">Escribe la dirección del evento o toca tu sector en el mapa.</p>
-
-        <div class="resultado">
-          <p id="resLugar" class="hint" aria-live="polite">Ubicación por confirmar</p>
-          <div class="resultado__row resultado__row--big"><span>Costo de traslado</span><b id="resCosto">—</b></div>
-        </div>
-
-        <a href="#cotizador" class="btn btn--full" id="btnUsarTraslado">Usar en mi cotización</a>
-        <button type="button" class="btn btn--ghost btn--full" id="btnCoordinarUbicacion">Prefiero coordinar la ubicación por WhatsApp</button>
-
-      </div>
-      <div class="traslado__mapa">
-        <div id="mapa"></div>
-        <p class="mapa__pie">Toca un sector para seleccionarlo. En celular, usa dos dedos para mover el mapa. Búsqueda de direcciones: <a href="https://photon.komoot.io" target="_blank" rel="noopener">Photon</a>.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
 <!-- ============ COTIZADOR ============ -->
 <section class="section section--cream" id="cotizador">
   <div class="wrap">
     <div class="head reveal">
 
       <h2>Arma tu evento</h2>
-      <p class="head__sub">Elige tus servicios, elige el tramo de personas y envíanos el resumen por WhatsApp con un clic.</p>
+      <p class="head__sub">Elige tus servicios y personas, dinos dónde es tu evento y envíanos el resumen por WhatsApp con un clic.</p>
     </div>
 
     <div class="cotizador reveal">
@@ -248,12 +209,40 @@
         <p class="paso-nota">Suma porciones extra a los servicios que elegiste, de 5 en 5 y hasta 200 por servicio, al precio base de 20 personas, sin descuento por tramo. Palomitas y algodón no llevan extras porque son ilimitados.</p>
         <div class="extras" id="extras"><!-- JS --></div>
 
-        <div class="field"><span>Sector y traslado</span>
-          <p id="sectorCotizacion" class="hint" aria-live="polite">Por confirmar · elige tu sector en el mapa o coordina por WhatsApp</p>
-          <a href="#traslado">Elegir sector en el mapa</a>
+        <div class="ubicacion" id="traslado">
+          <h3 class="block-title">3. ¿Dónde es tu evento?</h3>
+          <p class="paso-nota">Con la ubicación calculamos el traslado. Escribe la dirección, usa tu ubicación o toca el punto en el mapa.</p>
+
+          <div class="buscador">
+            <label class="buscador__campo" for="direccion">Dirección del evento</label>
+            <div class="buscador__caja">
+              <input type="search" id="direccion" placeholder="Ej: Barros Arana 1000, Concepción" autocomplete="off" enterkeyhint="search"
+                role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="sugerencias">
+              <ul class="buscador__lista" id="sugerencias" role="listbox" aria-label="Direcciones sugeridas" hidden></ul>
+            </div>
+            <p class="buscador__aviso" id="avisoBuscador" role="status" aria-live="polite" hidden></p>
+          </div>
+
+          <button type="button" class="btn-gps" id="btnGps" hidden>
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+            <span>Usar mi ubicación actual</span>
+          </button>
+
+          <div class="ubicacion__mapa">
+            <div id="mapa"></div>
+          </div>
+          <p class="mapa__pie">Toca el mapa para marcar el lugar. En celular, usa dos dedos para moverlo. Direcciones: <a href="https://photon.komoot.io" target="_blank" rel="noopener">Photon</a>.</p>
+
+          <div class="ubicacion__resultado" aria-live="polite">
+            <div><span>Traslado</span><p id="resLugar">Ubicación por confirmar</p></div>
+            <b id="resCosto">—</b>
+          </div>
+          <p class="hint" id="hintMapa" role="status" aria-live="polite">Escribe la dirección del evento, usa tu ubicación o toca el mapa.</p>
+          <button type="button" class="btn-texto" id="btnCoordinarUbicacion">Prefiero coordinar la ubicación por WhatsApp</button>
+          <input type="hidden" id="lugar">
         </div>
 
-        <h3 class="block-title">3. Detalle del evento</h3>
+        <h3 class="block-title">4. Detalle del evento</h3>
         <div class="grid2">
           <label class="field"><span>Nombre de quien reserva</span>
             <input type="text" id="nombre" placeholder="¿Cómo te llamamos?">
@@ -273,9 +262,6 @@
               <option>Cumpleaños</option><option>Baby shower</option><option>Matrimonio</option>
               <option>Evento de empresa</option><option>Actividad de colegio</option><option>Otro</option>
             </select>
-          </label>
-          <label class="field field--full"><span>Sector del evento</span>
-            <input type="text" id="lugar" readonly placeholder="Escribe tu dirección o elige tu sector en el mapa">
           </label>
           <label class="field field--full"><span>Comentario (opcional)</span>
             <textarea id="nota" rows="2" placeholder="Sabores, alergias, hora exacta..."></textarea>
@@ -713,7 +699,7 @@
 <script src="nav.js?v=52"></script>
 <script src="datos.js?v=59"></script>
 <script src="medicion.js?v=1"></script>
-<script src="script.js?v=58"></script>
+<script src="script.js?v=60"></script>
 <script src="portada-prueba.js?v=55"></script>
 </body>
 </html>

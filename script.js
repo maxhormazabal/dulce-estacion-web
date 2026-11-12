@@ -411,7 +411,7 @@ function seleccionarZona(indice, ubicacion) {
   $('#lugar').value = direccion || zona.nombre;
   avisar('');
   $('#resCosto').textContent = clp(zona.precio);
-  $('#resLugar').textContent = `${zona.nombre} · traslado ${clp(zona.precio)}`;
+  $('#resLugar').textContent = zona.nombre;
   $('#hintMapa').textContent = direccion
     ? 'Encontramos tu sector. Confirmaremos la dirección exacta por WhatsApp.'
     : 'Sector seleccionado. Confirmaremos la ubicación exacta por WhatsApp.';
@@ -727,6 +727,54 @@ async function elegirSugerencia(i) {
   if (mapaListo) mapa.setView(s.punto, 14, { animate: true });
 }
 
+/* Ubicación actual (GPS del teléfono o del navegador).
+   Se busca el nombre de la calle con Photon; si falla, se usa solo el punto. */
+const botonGps = $('#btnGps');
+async function nombreDelPunto([lat, lng]) {
+  try {
+    const r = await fetch(`${BUSCADOR.url.replace(/api\/$/, 'reverse')}?lat=${lat}&lon=${lng}&limit=1`);
+    if (!r.ok) return '';
+    const f = ((await r.json()).features || [])[0];
+    if (!f) return '';
+    const t = textoSugerencia(f.properties || {});
+    return t.detalle ? `${t.principal}, ${t.detalle}` : t.principal;
+  } catch (e) { return ''; }
+}
+function usarUbicacionActual() {
+  avisar('');
+  botonGps.disabled = true;
+  botonGps.classList.add('is-buscando');
+  $('span', botonGps).textContent = 'Buscando tu ubicación…';
+  const terminar = () => {
+    botonGps.disabled = false;
+    botonGps.classList.remove('is-buscando');
+    $('span', botonGps).textContent = 'Usar mi ubicación actual';
+  };
+  navigator.geolocation.getCurrentPosition(async pos => {
+    const punto = [pos.coords.latitude, pos.coords.longitude];
+    const nombre = await nombreDelPunto(punto);
+    const direccion = `${nombre || 'Mi ubicación actual'} (GPS)`;
+    estadoTraslado.textoEscrito = '';
+    entradaDireccion.value = direccion;
+    medir('ubicacion-gps');
+    try { await cargarMapa(); } catch (e) {}
+    const zona = zonaDe(...punto);
+    if (zona) seleccionarZona(ZONAS_TRASLADO.indexOf(zona), { direccion, punto });
+    else marcarFueraDeZona({ direccion, punto });
+    if (mapaListo) mapa.setView(punto, 15, { animate: true });
+    terminar();
+  }, err => {
+    terminar();
+    avisar(err.code === err.PERMISSION_DENIED
+      ? 'No tenemos permiso para ver tu ubicación. Actívalo en tu navegador o escribe la dirección.'
+      : 'No pudimos obtener tu ubicación. Escribe la dirección o toca el punto en el mapa.');
+  }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
+}
+if (botonGps && 'geolocation' in navigator) {
+  botonGps.hidden = false;
+  botonGps.addEventListener('click', usarUbicacionActual);
+}
+
 /* Dispara la carga del mapa cuando el usuario se acerca a Traslado. */
 const seccionTraslado = $('#traslado');
 if (seccionTraslado && 'IntersectionObserver' in window) {
@@ -750,7 +798,6 @@ function actualizarGestosMapa() {
 entradaTactil.addEventListener('change', actualizarGestosMapa);
 
 /* La ubicación se elige únicamente en el mapa o se coordina por WhatsApp. */
-$('#btnUsarTraslado').addEventListener('click', calcular);
 
 const campos = ['#fecha', '#hora', '#tipo', '#lugar', '#nombre', '#festejado', '#nota'];
 campos.forEach(sel => $(sel).addEventListener('input', calcular));
@@ -825,7 +872,6 @@ function calcular() {
     ? (c.tamano === null ? 'Más de 100 personas' : `Servicio · ${c.tamano} personas`)
     : 'Combinación';
   $('#cSub').textContent = !c.completo ? '—' : (c.tamano === null ? 'A cotizar' : clp(c.base));
-  $('#sectorCotizacion').textContent = textoSectorCotizacion();
   $('#cExtra').textContent = !c.completo ? '—' : clp(c.costoExtras);
   const conExtra = estadoTraslado.modo === 'cercana';
   $('#cTraslado').textContent = !c.completo ? '—'
@@ -847,14 +893,6 @@ function calcular() {
 /* ------------------------------------------------------------
    Mensajes de WhatsApp
 ------------------------------------------------------------ */
-function textoSectorCotizacion() {
-  const t = estadoTraslado;
-  if (t.modo === 'zona') return `${t.zona} · traslado ${clp(t.costo)}`;
-  if (t.modo === 'cercana') return `Cerca de ${t.zona} (a ${textoKm(t.distanciaKm)}) · traslado ${clp(t.costo)} + extra por distancia`;
-  if (t.modo === 'fuera') return t.zona ? `Fuera de zona, a ${textoKm(t.distanciaKm)} de ${t.zona} · traslado por cotizar` : 'Fuera de zona · traslado por cotizar';
-  if (t.textoEscrito) return `“${t.textoEscrito}” · no la encontramos, marca el punto en el mapa o la revisamos por WhatsApp`;
-  return 'Por confirmar · escribe tu dirección, elige tu sector en el mapa o coordina por WhatsApp';
-}
 /* Bloque de ubicación del mensaje: categoría clara para quien cotiza, más un enlace al punto exacto. */
 function mensajeUbicacion() {
   const t = estadoTraslado, L = [];
@@ -998,7 +1036,7 @@ function restaurarEstado() {
     } else if (e.traslado && e.traslado.indice >= 0 && ZONAS_TRASLADO[e.traslado.indice]) {
       resaltarZona(ZONAS_TRASLADO[e.traslado.indice]);
       $('#lugar').value = e.traslado.direccion || e.traslado.lugar || '';
-      $('#resLugar').textContent = `${e.traslado.zona} · traslado ${clp(e.traslado.costo)}`;
+      $('#resLugar').textContent = e.traslado.zona;
       $('#resCosto').textContent = clp(e.traslado.costo);
     } else if (e.traslado && e.traslado.fueraRango) {
       $('#lugar').value = e.traslado.direccion || '';
