@@ -47,7 +47,7 @@
 }
 
 *,*::before,*::after{ box-sizing:border-box; -webkit-tap-highlight-color:rgba(225,70,44,.14); }
-html{ scroll-behavior:smooth; scroll-padding-top:90px; -webkit-text-size-adjust:100%; }
+html{ touch-action:manipulation; scroll-behavior:smooth; scroll-padding-top:90px; -webkit-text-size-adjust:100%; }
 body{
   margin:0; background:var(--blanco); color:var(--tinta);
   font-family:var(--f-body); font-size:17px; line-height:1.65;
