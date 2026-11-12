@@ -345,9 +345,10 @@ if (MOSTRAR_RESENAS) {
 /* ------------------------------------------------------------
    Mapa y cálculo de traslado
 ------------------------------------------------------------ */
-const estadoTraslado = { lugar: '', zona: '', costo: 0, fueraRango: false, definido: false, modo: 'pendiente', indice: -1 };
+const TRASLADO_VACIO = { lugar: '', zona: '', costo: 0, fueraRango: false, definido: false, modo: 'pendiente', indice: -1, direccion: '', punto: null };
+const estadoTraslado = { ...TRASLADO_VACIO };
 const entradaTactil = matchMedia('(pointer: coarse)');
-let mapa = null, mapaListo = false;
+let mapa = null, mapaListo = false, marcador = null;
 
 /* Punto dentro de polígono (algoritmo del rayo) */
 function dentroDelPoligono(lat, lng, poligono) {
@@ -364,30 +365,64 @@ let zonaResaltada = null;
 function resaltarZona(zona) {
   if (!mapaListo) return;
   ZONAS_TRASLADO.forEach(z => {
-    z.capa.setStyle({ weight: 1.5, opacity: .55, fillOpacity: COLOR_ZONA[z.zona] });
+    z.capa.setStyle(estiloSector(z, false));
     z.capa.getElement().setAttribute('aria-pressed', String(z === zona));
   });
   zonaResaltada = zona ? zona.capa : null;
-  if (zonaResaltada) zonaResaltada.setStyle({ weight: 3.5, opacity: 1, fillOpacity: Math.min(.6, COLOR_ZONA[zona.zona] + .18) });
+  if (zonaResaltada) { zonaResaltada.setStyle(estiloSector(zona, true)); zonaResaltada.bringToFront(); }
 }
-function seleccionarZona(indice) {
+function seleccionarZona(indice, ubicacion) {
   const zona = ZONAS_TRASLADO[indice];
   if (!zona) return;
   if (mapaListo) resaltarZona(zona);
-  Object.assign(estadoTraslado, { lugar: zona.nombre, zona: zona.nombre, costo: zona.precio, fueraRango: false, definido: true, modo: 'zona', indice });
-  $('#lugar').value = zona.nombre;
+  const direccion = ubicacion ? ubicacion.direccion || '' : '';
+  const punto = ubicacion ? ubicacion.punto || null : null;
+  Object.assign(estadoTraslado, { lugar: direccion || zona.nombre, zona: zona.nombre, costo: zona.precio, fueraRango: false, definido: true, modo: 'zona', indice, direccion, punto });
+  ponerMarcador(punto);
+  if (!direccion) $('#direccion').value = '';
+  $('#lugar').value = direccion || zona.nombre;
+  avisar('');
   $('#resCosto').textContent = clp(zona.precio);
   $('#resLugar').textContent = `${zona.nombre} · traslado ${clp(zona.precio)}`;
-  $('#hintMapa').textContent = 'Sector seleccionado. Confirmaremos la ubicación exacta por WhatsApp.';
+  $('#hintMapa').textContent = direccion
+    ? 'Encontramos tu sector. Confirmaremos la dirección exacta por WhatsApp.'
+    : 'Sector seleccionado. Confirmaremos la ubicación exacta por WhatsApp.';
   calcular();
 }
 function coordinarUbicacion() {
   if (mapaListo) { resaltarZona(null); mapa.closePopup(); }
-  Object.assign(estadoTraslado, { lugar: '', zona: '', costo: 0, fueraRango: false, definido: false, modo: 'pendiente', indice: -1 });
+  Object.assign(estadoTraslado, TRASLADO_VACIO);
+  ponerMarcador(null);
+  $('#direccion').value = '';
+  avisar('');
   $('#lugar').value = '';
   $('#resCosto').textContent = 'Por confirmar'; $('#resLugar').textContent = 'Ubicación por confirmar';
   $('#hintMapa').textContent = 'Podemos coordinar la ubicación y la tarifa por WhatsApp.';
   calcular();
+}
+/* Punto fuera de los sectores (tocado en el mapa o encontrado por dirección) */
+function marcarFueraDeZona(ubicacion) {
+  if (mapaListo) { resaltarZona(null); mapa.closePopup(); }
+  const direccion = ubicacion && ubicacion.direccion || '';
+  const punto = ubicacion && ubicacion.punto || null;
+  Object.assign(estadoTraslado, TRASLADO_VACIO, { fueraRango: true, direccion, punto, lugar: direccion });
+  ponerMarcador(punto, true);
+  if (!direccion) $('#direccion').value = '';
+  $('#lugar').value = direccion;
+  avisar('');
+  $('#resCosto').textContent = 'Por confirmar';
+  $('#resLugar').textContent = 'Fuera de nuestras zonas';
+  $('#hintMapa').textContent = 'Fuera de nuestras zonas: escríbenos por WhatsApp y te damos una tarifa';
+  calcular();
+}
+function ponerMarcador(punto, fuera) {
+  if (!mapaListo) return;
+  if (marcador) { marcador.remove(); marcador = null; }
+  if (!punto) return;
+  marcador = L.marker(punto, {
+    icon: L.divIcon({ className: 'pin-evento' + (fuera ? ' pin-evento--fuera' : ''), html: '<span></span>', iconSize: [30, 40], iconAnchor: [15, 38] }),
+    keyboard: false, interactive: false
+  }).addTo(mapa);
 }
 $('#btnCoordinarUbicacion').addEventListener('click', coordinarUbicacion);
 
@@ -434,7 +469,8 @@ function initMapa() {
     }
   }).setView([CONFIG.base.lat, CONFIG.base.lng], 11);
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors', maxZoom: 19
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors', maxZoom: 19,
+    className: 'mapa-fondo'
   }).addTo(mapa);
 
   const observarMapa = new ResizeObserver(() => mapa.invalidateSize({ pan: false }));
@@ -442,11 +478,10 @@ function initMapa() {
 
   ZONAS_TRASLADO.forEach(z => {
     z.capa = L.polygon(z.poligono, {
-      color: '#E1462C', weight: 1.5, opacity: .55,
-      fillColor: '#E1462C', fillOpacity: COLOR_ZONA[z.zona], bubblingMouseEvents: false, className: 'sector-traslado'
+      ...estiloSector(z, false), bubblingMouseEvents: false, className: 'sector-traslado'
     }).addTo(mapa).bindPopup(`<b>${z.nombre}</b><br>Traslado ${clp(z.precio)}`);
     z.capa.bindTooltip(`${z.nombre} · traslado ${clp(z.precio)}`, { sticky: true });
-    z.capa.on('click', () => seleccionarZona(ZONAS_TRASLADO.indexOf(z)));
+    z.capa.on('click', e => seleccionarZona(ZONAS_TRASLADO.indexOf(z), { punto: [e.latlng.lat, e.latlng.lng] }));
     const elemento = z.capa.getElement();
     elemento.setAttribute('role', 'button'); elemento.setAttribute('tabindex', '0');
     elemento.setAttribute('aria-label', `${z.nombre} · traslado ${clp(z.precio)}`);
@@ -457,18 +492,178 @@ function initMapa() {
   });
 
   mapa.on('click', e => {
-    const zona = zonaDe(e.latlng.lat, e.latlng.lng);
-    if (zona) { seleccionarZona(ZONAS_TRASLADO.indexOf(zona)); return; }
-    coordinarUbicacion();
-    estadoTraslado.fueraRango = true;
-    $('#hintMapa').textContent = 'Fuera de nuestras zonas: escríbenos por WhatsApp y te damos una tarifa';
-    $('#resLugar').textContent = 'Fuera de nuestras zonas';
-    calcular();
+    const punto = [e.latlng.lat, e.latlng.lng];
+    const zona = zonaDe(...punto);
+    if (zona) { seleccionarZona(ZONAS_TRASLADO.indexOf(zona), { punto }); return; }
+    marcarFueraDeZona({ punto });
   });
 
+  agregarLeyenda();
   actualizarGestosMapa();
-  if (estadoTraslado.indice >= 0) resaltarZona(ZONAS_TRASLADO[estadoTraslado.indice]);
   mapaListo = true;
+  if (estadoTraslado.indice >= 0) resaltarZona(ZONAS_TRASLADO[estadoTraslado.indice]);
+  if (estadoTraslado.punto) {
+    ponerMarcador(estadoTraslado.punto, estadoTraslado.fueraRango);
+    mapa.setView(estadoTraslado.punto, 14);
+  }
+}
+
+/* Apariencia de los sectores: color por zona, borde marcado al seleccionar. */
+function estiloSector(zona, activo) {
+  const color = COLOR_ZONA[zona.zona];
+  return activo
+    ? { color, fillColor: color, weight: 3, opacity: 1, fillOpacity: .42 }
+    : { color, fillColor: color, weight: 1.2, opacity: .8, fillOpacity: .22 };
+}
+/* Leyenda de tarifas: una fila por precio, con los sectores de esa zona. */
+function agregarLeyenda() {
+  const leyenda = L.control({ position: 'bottomleft' });
+  leyenda.onAdd = () => {
+    const caja = L.DomUtil.create('div', 'mapa-leyenda');
+    const zonas = [...new Set(ZONAS_TRASLADO.map(z => z.zona))];
+    caja.innerHTML = '<b>Traslado</b>' + zonas.map(letra => {
+      const z = ZONAS_TRASLADO.find(x => x.zona === letra);
+      return `<span><i style="background:${COLOR_ZONA[letra]}"></i>${clp(z.precio)}</span>`;
+    }).join('');
+    L.DomEvent.disableClickPropagation(caja);
+    return caja;
+  };
+  leyenda.addTo(mapa);
+}
+
+/* ------------------------------------------------------------
+   Buscador de dirección (Photon, sobre datos de OpenStreetMap)
+   Convierte la dirección en coordenadas y elige el sector solo.
+------------------------------------------------------------ */
+const BUSCADOR = {
+  url: 'https://photon.komoot.io/api/',
+  // Área de búsqueda: los sectores más un margen, para poder avisar "fuera de zona"
+  bbox: (() => {
+    const lat = ZONAS_TRASLADO.flatMap(z => z.poligono.map(p => p[0]));
+    const lng = ZONAS_TRASLADO.flatMap(z => z.poligono.map(p => p[1]));
+    const m = 0.15;
+    return [Math.min(...lng) - m, Math.min(...lat) - m, Math.max(...lng) + m, Math.max(...lat) + m].map(n => n.toFixed(4)).join(',');
+  })(),
+  minimo: 3, espera: 350, maximo: 6
+};
+const entradaDireccion = $('#direccion');
+const listaSugerencias = $('#sugerencias');
+const avisoBuscador = $('#avisoBuscador');
+let sugerencias = [], sugerenciaActiva = -1, temporizadorBusqueda = null, busquedaEnCurso = null;
+const cacheBusquedas = new Map();
+
+function textoSugerencia(p) {
+  const calle = p.street ? `${p.street}${p.housenumber ? ' ' + p.housenumber : ''}` : '';
+  const principal = p.name && p.name !== p.street ? p.name : (calle || p.name || '');
+  const detalle = [p.name && calle && p.name !== calle ? calle : '', p.district || p.locality, p.city || p.county]
+    .filter((v, i, a) => v && v !== principal && a.indexOf(v) === i);
+  return { principal, detalle: detalle.join(', ') };
+}
+function avisar(texto) {
+  avisoBuscador.textContent = texto || '';
+  avisoBuscador.hidden = !texto;
+}
+function cerrarSugerencias() {
+  listaSugerencias.hidden = true;
+  listaSugerencias.innerHTML = '';
+  entradaDireccion.setAttribute('aria-expanded', 'false');
+  entradaDireccion.removeAttribute('aria-activedescendant');
+  sugerenciaActiva = -1;
+}
+function mostrarSugerencias(lista) {
+  sugerencias = lista;
+  sugerenciaActiva = -1;
+  if (!lista.length) { cerrarSugerencias(); return; }
+  listaSugerencias.innerHTML = lista.map((s, i) =>
+    `<li id="sug-${i}" role="option" aria-selected="false" data-i="${i}"><b>${escaparHTML(s.principal)}</b>${s.detalle ? `<span>${escaparHTML(s.detalle)}</span>` : ''}</li>`).join('');
+  listaSugerencias.hidden = false;
+  entradaDireccion.setAttribute('aria-expanded', 'true');
+}
+function marcarSugerencia(i) {
+  const items = $$('li', listaSugerencias);
+  if (!items.length) return;
+  sugerenciaActiva = (i + items.length) % items.length;
+  items.forEach((li, j) => li.setAttribute('aria-selected', String(j === sugerenciaActiva)));
+  entradaDireccion.setAttribute('aria-activedescendant', items[sugerenciaActiva].id);
+  items[sugerenciaActiva].scrollIntoView({ block: 'nearest' });
+}
+const escaparHTML = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+async function buscarDireccion(texto) {
+  const clave = texto.toLowerCase();
+  if (cacheBusquedas.has(clave)) return cacheBusquedas.get(clave);
+  if (busquedaEnCurso) busquedaEnCurso.abort();
+  busquedaEnCurso = new AbortController();
+  const params = new URLSearchParams({
+    q: texto, limit: String(BUSCADOR.maximo), bbox: BUSCADOR.bbox,
+    lat: String(CONFIG.base.lat), lon: String(CONFIG.base.lng)
+  });
+  const respuesta = await fetch(`${BUSCADOR.url}?${params}`, { signal: busquedaEnCurso.signal });
+  if (!respuesta.ok) throw new Error('Photon ' + respuesta.status);
+  const datos = await respuesta.json();
+  const vistos = new Set();
+  const lista = (datos.features || []).map(f => {
+    const [lng, lat] = f.geometry.coordinates;
+    return { ...textoSugerencia(f.properties || {}), punto: [lat, lng] };
+  }).filter(s => {
+    const k = s.principal + '|' + s.detalle;
+    if (!s.principal || vistos.has(k)) return false;
+    vistos.add(k); return true;
+  });
+  cacheBusquedas.set(clave, lista);
+  return lista;
+}
+
+entradaDireccion.addEventListener('input', () => {
+  clearTimeout(temporizadorBusqueda);
+  const texto = entradaDireccion.value.trim();
+  avisar('');
+  if (texto.length < BUSCADOR.minimo) { cerrarSugerencias(); return; }
+  temporizadorBusqueda = setTimeout(async () => {
+    entradaDireccion.closest('.buscador').classList.add('is-buscando');
+    try {
+      const lista = await buscarDireccion(texto);
+      if (entradaDireccion.value.trim() !== texto) return;   // el usuario siguió escribiendo
+      mostrarSugerencias(lista);
+      if (!lista.length) avisar('No encontramos esa dirección. Prueba con calle, número y comuna, o toca tu sector en el mapa.');
+    } catch (e) {
+      if (e.name === 'AbortError') return;
+      cerrarSugerencias();
+      avisar('No pudimos buscar la dirección en este momento. Toca tu sector en el mapa o coordina por WhatsApp.');
+    } finally {
+      entradaDireccion.closest('.buscador').classList.remove('is-buscando');
+    }
+  }, BUSCADOR.espera);
+});
+entradaDireccion.addEventListener('keydown', e => {
+  if (listaSugerencias.hidden) return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); marcarSugerencia(sugerenciaActiva + 1); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); marcarSugerencia(sugerenciaActiva - 1); }
+  else if (e.key === 'Enter') { e.preventDefault(); elegirSugerencia(sugerenciaActiva >= 0 ? sugerenciaActiva : 0); }
+  else if (e.key === 'Escape') cerrarSugerencias();
+});
+// pointerdown (no click) para que el blur del campo no cierre la lista antes
+listaSugerencias.addEventListener('pointerdown', e => {
+  const li = e.target.closest('li[data-i]');
+  if (!li) return;
+  e.preventDefault();
+  elegirSugerencia(+li.dataset.i);
+});
+entradaDireccion.addEventListener('blur', () => setTimeout(cerrarSugerencias, 150));
+
+async function elegirSugerencia(i) {
+  const s = sugerencias[i];
+  if (!s) return;
+  const direccion = s.detalle ? `${s.principal}, ${s.detalle}` : s.principal;
+  entradaDireccion.value = direccion;
+  cerrarSugerencias();
+  avisar('');
+  medir('direccion-buscada');
+  const zona = zonaDe(...s.punto);
+  try { await cargarMapa(); } catch (e) {}
+  if (zona) seleccionarZona(ZONAS_TRASLADO.indexOf(zona), { direccion, punto: s.punto });
+  else marcarFueraDeZona({ direccion, punto: s.punto });
+  if (mapaListo) mapa.setView(s.punto, 14, { animate: true });
 }
 
 /* Dispara la carga del mapa cuando el usuario se acerca a Traslado. */
@@ -589,7 +784,9 @@ function calcular() {
 ------------------------------------------------------------ */
 function mensajeUbicacion() {
   const tarifa = estadoTraslado.definido && !estadoTraslado.fueraRango ? clp(estadoTraslado.costo) : 'por confirmar';
-  if (estadoTraslado.modo === 'zona') return `📍 Sector: ${estadoTraslado.zona} · Traslado: ${tarifa} (confirmar ubicación exacta)`;
+  const direccion = estadoTraslado.direccion ? `📍 Dirección: ${estadoTraslado.direccion}\n` : '';
+  if (estadoTraslado.modo === 'zona') return `${direccion}📍 Sector: ${estadoTraslado.zona} · Traslado: ${tarifa} (confirmar ubicación exacta)`;
+  if (estadoTraslado.fueraRango) return `${direccion}📍 Fuera de las zonas del mapa · Traslado: por confirmar`;
   return '📍 Ubicación: por confirmar · Traslado: por confirmar';
 }
 function mensajeCotizacion() {
@@ -645,12 +842,14 @@ $('#btnReiniciar').addEventListener('click', () => {
   tamano = 40;
   selectorPersonas.value = '40';
   Object.keys(cantidadesExtra).forEach(k => delete cantidadesExtra[k]);
-  Object.assign(estadoTraslado, { lugar: '', zona: '', costo: 0, fueraRango: false, definido: false, modo: 'pendiente', indice: -1 });
-  ['#nombre', '#festejado', '#fecha', '#hora', '#lugar', '#nota'].forEach(sel => $(sel).value = '');
+  Object.assign(estadoTraslado, TRASLADO_VACIO);
+  if (mapaListo) { resaltarZona(null); mapa.closePopup(); }
+  ponerMarcador(null);
+  ['#nombre', '#festejado', '#fecha', '#hora', '#lugar', '#nota', '#direccion'].forEach(sel => $(sel).value = '');
   $('#sinFecha').checked = false; $('#fecha').disabled = false;
   $('#tipo').value = 'Cumpleaños';
   $('#resCosto').textContent = '—'; $('#resLugar').textContent = 'Ubicación por confirmar';
-  $('#hintMapa').textContent = 'Toca tu sector en el mapa para conocer la tarifa.';
+  $('#hintMapa').textContent = 'Escribe la dirección del evento o toca tu sector en el mapa.';
   pintarExtras();
   calcular();
 });
@@ -709,11 +908,16 @@ function restaurarEstado() {
     if (e.hora != null) $('#hora').value = e.hora;
     if (e.tipo != null) $('#tipo').value = e.tipo;
     if (e.nota != null) $('#nota').value = e.nota;
+    if (e.traslado && e.traslado.direccion) $('#direccion').value = e.traslado.direccion;
     if (e.traslado && e.traslado.indice >= 0 && ZONAS_TRASLADO[e.traslado.indice]) {
       resaltarZona(ZONAS_TRASLADO[e.traslado.indice]);
-      $('#lugar').value = e.traslado.lugar || '';
+      $('#lugar').value = e.traslado.direccion || e.traslado.lugar || '';
       $('#resLugar').textContent = `${e.traslado.zona} · traslado ${clp(e.traslado.costo)}`;
       $('#resCosto').textContent = clp(e.traslado.costo);
+    } else if (e.traslado && e.traslado.fueraRango) {
+      $('#lugar').value = e.traslado.direccion || '';
+      $('#resLugar').textContent = 'Fuera de nuestras zonas';
+      $('#resCosto').textContent = 'Por confirmar';
     }
   } catch (e) {}
 }

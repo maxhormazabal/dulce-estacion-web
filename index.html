@@ -36,7 +36,7 @@
 <link rel="preload" href="fonts/montserrat.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/playfair-display.woff2" as="font" type="font/woff2" crossorigin>
 <!-- El ?v= obliga al navegador a recargar el archivo: si editas y no ves el cambio, súbele el número -->
-<link rel="stylesheet" href="estilos.css?v=67">
+<link rel="stylesheet" href="estilos.css?v=68">
 </head>
 <body>
 
@@ -124,7 +124,7 @@
     <h2 class="steps__titulo reveal" id="titulo-como-funciona">Cómo funciona contratar un servicio</h2>
     <ol class="steps">
       <li class="step reveal"><span class="step__n" aria-hidden="true">01</span><h3>Eliges tus servicios</h3><p>Arma tu evento desde el cotizador: elige uno o varios servicios, hasta los seis si quieres.</p></li>
-      <li class="step reveal"><span class="step__n" aria-hidden="true">02</span><h3>Calculamos el traslado</h3><p>Marca el lugar del evento en el mapa y el precio del traslado sale al instante.</p></li>
+      <li class="step reveal"><span class="step__n" aria-hidden="true">02</span><h3>Calculamos el traslado</h3><p>Escribe la dirección del evento o márcala en el mapa y el precio del traslado sale al instante.</p></li>
       <li class="step reveal"><span class="step__n" aria-hidden="true">03</span><h3>Llegamos y montamos</h3><p>Aparecemos 30 min antes con todo listo: equipos, insumos y nuestros operadores.</p></li>
       <li class="step reveal"><span class="step__n" aria-hidden="true">04</span><h3>Tú solo disfrutas</h3><p>2 horas de dulce sin parar, o hasta que se acabe la última porción. Siempre con alguien atendiendo.</p></li>
     </ol>
@@ -190,12 +190,21 @@
     <div class="head reveal">
 
       <h2>Calcula tu traslado</h2>
-      <p class="head__sub">Toca tu sector en el mapa</p>
+      <p class="head__sub">Escribe la dirección del evento o toca tu sector en el mapa</p>
     </div>
 
     <div class="traslado reveal">
       <div class="traslado__panel">
-        <p class="hint" id="hintMapa" role="status" aria-live="polite">Toca tu sector en el mapa para conocer la tarifa.</p>
+        <div class="buscador">
+          <label class="field buscador__campo" for="direccion"><span>Dirección del evento</span></label>
+          <div class="buscador__caja">
+            <input type="search" id="direccion" placeholder="Ej: Barros Arana 1000, Concepción" autocomplete="off" enterkeyhint="search"
+              role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="sugerencias">
+            <ul class="buscador__lista" id="sugerencias" role="listbox" aria-label="Direcciones sugeridas" hidden></ul>
+          </div>
+          <p class="buscador__aviso" id="avisoBuscador" role="status" aria-live="polite" hidden></p>
+        </div>
+        <p class="hint" id="hintMapa" role="status" aria-live="polite">Escribe la dirección del evento o toca tu sector en el mapa.</p>
 
         <div class="resultado">
           <p id="resLugar" class="hint" aria-live="polite">Ubicación por confirmar</p>
@@ -208,7 +217,7 @@
       </div>
       <div class="traslado__mapa">
         <div id="mapa"></div>
-        <p class="mapa__pie">Toca un sector para seleccionarlo. En celular, usa dos dedos para mover el mapa.</p>
+        <p class="mapa__pie">Toca un sector para seleccionarlo. En celular, usa dos dedos para mover el mapa. Búsqueda de direcciones: <a href="https://photon.komoot.io" target="_blank" rel="noopener">Photon</a>.</p>
       </div>
     </div>
   </div>
@@ -266,7 +275,7 @@
             </select>
           </label>
           <label class="field field--full"><span>Sector del evento</span>
-            <input type="text" id="lugar" readonly placeholder="Elige tu sector en el mapa o coordina por WhatsApp">
+            <input type="text" id="lugar" readonly placeholder="Escribe tu dirección o elige tu sector en el mapa">
           </label>
           <label class="field field--full"><span>Comentario (opcional)</span>
             <textarea id="nota" rows="2" placeholder="Sabores, alergias, hora exacta..."></textarea>
@@ -702,9 +711,9 @@
 </script>
 
 <script src="nav.js?v=52"></script>
-<script src="datos.js?v=57"></script>
+<script src="datos.js?v=58"></script>
 <script src="medicion.js?v=1"></script>
-<script src="script.js?v=56"></script>
+<script src="script.js?v=57"></script>
 <script src="portada-prueba.js?v=55"></script>
 </body>
 </html>

@@ -42,7 +42,8 @@ const ZONAS_TRASLADO = [
   { zona: 'D', precio: 20000, nombre: 'Coronel', poligono: [[-36.91533,-73.13798],[-36.91901,-73.15739],[-36.92889,-73.1591],[-36.97389,-73.17764],[-36.99939,-73.19172],[-37.02653,-73.18485],[-37.03092,-73.1773],[-37.02598,-73.17181],[-37.02818,-73.16288],[-37.02571,-73.15636],[-37.02845,-73.15189],[-37.04435,-73.14606],[-37.04983,-73.13473],[-37.03832,-73.11859],[-37.02324,-73.1155],[-37.01831,-73.13026],[-36.99665,-73.12511],[-36.96923,-73.12511],[-36.95057,-73.14159],[-36.91533,-73.13798]] },
 ];
 
-const COLOR_ZONA = { A: 0.30, B: 0.22, C: 0.14, D: 0.08 };   // intensidad del relleno
+// Color de cada zona en el mapa y la leyenda: de más clara (más cerca) a más intensa (más lejos)
+const COLOR_ZONA = { A: '#F2A33A', B: '#EB7A31', C: '#E1462C', D: '#A82E1C' };
 
 /* Tarifas aprobadas por Maus vía ADMIN: Costos-y-Promos-Dulce-Estacion-v2.xlsx.
    Precio por persona para cada tramo; traslado aparte. */
