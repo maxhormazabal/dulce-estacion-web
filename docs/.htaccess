@@ -1,0 +1,65 @@
+# ============================================================
+#  Dulce Estación · configuración de servidor (Apache / LiteSpeed)
+#  HostGator usa Apache, así que este archivo se aplica solo.
+#  Si algo falla tras subirlo, renómbralo a .htaccess-off para descartarlo.
+# ============================================================
+
+# ---------- Tipos MIME ----------
+# Sin esto algunos servidores entregan .webp como descarga en vez de imagen
+AddType image/webp                  .webp
+AddType image/svg+xml               .svg
+AddType application/manifest+json   .webmanifest
+
+# ---------- Forzar HTTPS y un solo dominio ----------
+# Evita que Google indexe http:// y https:// como páginas distintas
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Un solo salto al dominio canónico; conserva ruta y parámetros.
+  RewriteCond %{HTTPS} !=on [OR]
+  RewriteCond %{HTTP_HOST} !^dulcestacion\.cl$ [NC]
+  RewriteRule ^(.*)$ https://dulcestacion.cl/$1 [R=301,L]
+
+  # Evita contenido duplicado: /index.html redirige a /.
+  RewriteCond %{THE_REQUEST} ^[A-Z]{3,9}\ /index\.html(\ |\?) [NC]
+  RewriteRule ^index\.html$ / [R=301,L]
+</IfModule>
+
+# ---------- Compresión ----------
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css text/plain text/xml
+  AddOutputFilterByType DEFLATE application/javascript application/json
+  AddOutputFilterByType DEFLATE application/manifest+json image/svg+xml
+</IfModule>
+
+# ---------- Caché del navegador ----------
+# Las imágenes e iconos cambian poco. El HTML nunca se cachea, para que
+# los cambios de precio se vean de inmediato.
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType image/webp        "access plus 1 year"
+  ExpiresByType image/jpeg        "access plus 1 year"
+  ExpiresByType image/png         "access plus 1 year"
+  ExpiresByType image/svg+xml     "access plus 1 year"
+  ExpiresByType image/x-icon      "access plus 1 year"
+  ExpiresByType text/css          "access plus 1 month"
+  ExpiresByType application/javascript "access plus 1 month"
+  ExpiresByType text/html         "access plus 0 seconds"
+</IfModule>
+
+<IfModule mod_headers.c>
+  <FilesMatch "\.(webp|jpg|jpeg|png|svg|ico)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+  <FilesMatch "\.html$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+</IfModule>
+
+# ---------- No publicar archivos de trabajo ----------
+<FilesMatch "\.(xlsx|md)$">
+  Require all denied
+</FilesMatch>
+
+# ---------- Página de error ----------
+ErrorDocument 404 /404.html
