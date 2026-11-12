@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Dulce Estación">
+  <rect width="64" height="64" rx="14" fill="#F7F3E7"/>
+  <!-- "d" del wordmark: anillo + barra redondeada, misma geometría que favicon.ico -->
+  <path fill="#E1462C" fill-rule="evenodd" d="
+    M43 11a6.5 6.5 0 0 1 6.5 6.5v30A6.5 6.5 0 0 1 36 47.5v-30A6.5 6.5 0 0 1 43 11z
+    M26 24a15 15 0 1 1 0 30 15 15 0 0 1 0-30z
+    m0 8.4a6.6 6.6 0 1 0 0 13.2 6.6 6.6 0 0 0 0-13.2z"/>
+</svg>
