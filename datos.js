@@ -17,6 +17,11 @@ const CONFIG = {
   base: { lat: -36.8270, lng: -73.0503, nombre: 'Concepción centro' },
   pais: 'cl',                // código de país para la búsqueda de direcciones
 
+  // Direcciones fuera de las zonas pero cerca de una: hasta estos km de distancia
+  // se cobra la tarifa de la zona más cercana más un extra que se confirma por WhatsApp.
+  // Más lejos, el traslado queda "por cotizar".
+  kmZonaCercana: 3,
+
 };
 
 /* ------------------------------------------------------------

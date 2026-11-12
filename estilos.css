@@ -993,3 +993,4 @@ body.visor-abierto{ overflow:hidden; }
 .pin-evento span::after{ content:''; position:absolute; left:50%; top:50%; width:8px; height:8px; margin:-4px 0 0 -4px; border-radius:50%; background:var(--blanco); }
 .pin-evento--fuera span{ background:var(--gris); }
 .buscador__caja input::-webkit-search-cancel-button{ -webkit-appearance:none; display:none; }
+.resultado__row--big b small{ display:block; font-size:.8rem; font-weight:500; color:var(--gris); }

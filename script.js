@@ -345,7 +345,10 @@ if (MOSTRAR_RESENAS) {
 /* ------------------------------------------------------------
    Mapa y cálculo de traslado
 ------------------------------------------------------------ */
-const TRASLADO_VACIO = { lugar: '', zona: '', costo: 0, fueraRango: false, definido: false, modo: 'pendiente', indice: -1, direccion: '', punto: null };
+/* modo: 'pendiente' | 'zona' (dentro de un sector) | 'cercana' (fuera, a pocos km: tarifa + extra)
+   | 'fuera' (lejos: por cotizar). textoEscrito: dirección que el buscador no encontró. */
+const TRASLADO_VACIO = { lugar: '', zona: '', costo: 0, fueraRango: false, definido: false, modo: 'pendiente', indice: -1,
+  direccion: '', punto: null, distanciaKm: null, textoEscrito: '' };
 const estadoTraslado = { ...TRASLADO_VACIO };
 const entradaTactil = matchMedia('(pointer: coarse)');
 let mapa = null, mapaListo = false, marcador = null;
@@ -360,6 +363,31 @@ function dentroDelPoligono(lat, lng, poligono) {
   return dentro;
 }
 const zonaDe = (lat, lng) => ZONAS_TRASLADO.find(z => dentroDelPoligono(lat, lng, z.poligono)) || null;
+
+/* Distancia en km desde un punto al borde de un sector (proyección plana local, sobra para pocos km) */
+function distanciaAlSector(lat, lng, poligono) {
+  const kx = 111.32 * Math.cos(lat * Math.PI / 180), ky = 110.574;
+  let minimo = Infinity;
+  for (let i = 0, j = poligono.length - 1; i < poligono.length; j = i++) {
+    const ax = (poligono[j][1] - lng) * kx, ay = (poligono[j][0] - lat) * ky;
+    const bx = (poligono[i][1] - lng) * kx, by = (poligono[i][0] - lat) * ky;
+    const dx = bx - ax, dy = by - ay, largo = dx * dx + dy * dy;
+    const t = largo ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / largo)) : 0;
+    minimo = Math.min(minimo, Math.hypot(ax + t * dx, ay + t * dy));
+  }
+  return minimo;
+}
+function zonaMasCercana(lat, lng) {
+  return ZONAS_TRASLADO.reduce((mejor, z) => {
+    const km = distanciaAlSector(lat, lng, z.poligono);
+    // a igual distancia, la más barata
+    return !mejor || km < mejor.km - 0.05 || (Math.abs(km - mejor.km) <= 0.05 && z.precio < mejor.zona.precio) ? { zona: z, km } : mejor;
+  }, null);
+}
+const textoKm = km => km < 1 ? `${Math.max(100, Math.round(km * 10) * 100)} m` : `${km.toLocaleString('es-CL', { maximumFractionDigits: 1 })} km`;
+/* Reinicia el traslado conservando la dirección escrita que no se encontró */
+const reiniciarTraslado = cambios => Object.assign(estadoTraslado, TRASLADO_VACIO, { textoEscrito: estadoTraslado.textoEscrito }, cambios);
+const limpiarCampoDireccion = () => { if (!estadoTraslado.textoEscrito) $('#direccion').value = ''; };
 
 let zonaResaltada = null;
 function resaltarZona(zona) {
@@ -377,9 +405,9 @@ function seleccionarZona(indice, ubicacion) {
   if (mapaListo) resaltarZona(zona);
   const direccion = ubicacion ? ubicacion.direccion || '' : '';
   const punto = ubicacion ? ubicacion.punto || null : null;
-  Object.assign(estadoTraslado, { lugar: direccion || zona.nombre, zona: zona.nombre, costo: zona.precio, fueraRango: false, definido: true, modo: 'zona', indice, direccion, punto });
+  reiniciarTraslado({ lugar: direccion || zona.nombre, zona: zona.nombre, costo: zona.precio, definido: true, modo: 'zona', indice, direccion, punto });
   ponerMarcador(punto);
-  if (!direccion) $('#direccion').value = '';
+  if (!direccion) limpiarCampoDireccion();
   $('#lugar').value = direccion || zona.nombre;
   avisar('');
   $('#resCosto').textContent = clp(zona.precio);
@@ -400,19 +428,33 @@ function coordinarUbicacion() {
   $('#hintMapa').textContent = 'Podemos coordinar la ubicación y la tarifa por WhatsApp.';
   calcular();
 }
-/* Punto fuera de los sectores (tocado en el mapa o encontrado por dirección) */
+/* Punto fuera de los sectores (tocado en el mapa o encontrado por dirección).
+   Cerca de una zona: su tarifa + extra por confirmar. Lejos: por cotizar, indicando la más cercana. */
 function marcarFueraDeZona(ubicacion) {
   if (mapaListo) { resaltarZona(null); mapa.closePopup(); }
   const direccion = ubicacion && ubicacion.direccion || '';
   const punto = ubicacion && ubicacion.punto || null;
-  Object.assign(estadoTraslado, TRASLADO_VACIO, { fueraRango: true, direccion, punto, lugar: direccion });
-  ponerMarcador(punto, true);
-  if (!direccion) $('#direccion').value = '';
-  $('#lugar').value = direccion;
+  const cercana = punto ? zonaMasCercana(...punto) : null;
+  const esCercana = cercana && cercana.km <= CONFIG.kmZonaCercana;
+  if (esCercana) {
+    const z = cercana.zona;
+    reiniciarTraslado({ modo: 'cercana', definido: true, zona: z.nombre, costo: z.precio, indice: ZONAS_TRASLADO.indexOf(z),
+      distanciaKm: cercana.km, direccion, punto, lugar: direccion || `Cerca de ${z.nombre}` });
+    if (mapaListo) resaltarZona(z);
+    $('#resCosto').innerHTML = `${clp(z.precio)} <small>+ extra</small>`;
+    $('#resLugar').textContent = `Cerca de ${z.nombre} · a ${textoKm(cercana.km)} de la zona`;
+    $('#hintMapa').textContent = `Estás a ${textoKm(cercana.km)} de nuestra zona ${z.nombre}. Usamos su tarifa y te confirmaremos por WhatsApp un pequeño extra por distancia.`;
+  } else {
+    reiniciarTraslado({ modo: 'fuera', fueraRango: true, direccion, punto, lugar: direccion,
+      zona: cercana ? cercana.zona.nombre : '', distanciaKm: cercana ? cercana.km : null });
+    $('#resCosto').textContent = 'Por cotizar';
+    $('#resLugar').textContent = cercana ? `Fuera de nuestras zonas · a ${textoKm(cercana.km)} de ${cercana.zona.nombre}` : 'Fuera de nuestras zonas';
+    $('#hintMapa').textContent = 'Fuera de nuestras zonas: igual puedes enviarnos tu cotización y te damos la tarifa de traslado por WhatsApp.';
+  }
+  ponerMarcador(punto, !esCercana);
+  if (!direccion) limpiarCampoDireccion();
+  $('#lugar').value = direccion || estadoTraslado.lugar;
   avisar('');
-  $('#resCosto').textContent = 'Por confirmar';
-  $('#resLugar').textContent = 'Fuera de nuestras zonas';
-  $('#hintMapa').textContent = 'Fuera de nuestras zonas: escríbenos por WhatsApp y te damos una tarifa';
   calcular();
 }
 function ponerMarcador(punto, fuera) {
@@ -618,6 +660,7 @@ entradaDireccion.addEventListener('input', () => {
   clearTimeout(temporizadorBusqueda);
   const texto = entradaDireccion.value.trim();
   avisar('');
+  if (!texto && estadoTraslado.textoEscrito) { estadoTraslado.textoEscrito = ''; calcular(); }
   if (texto.length < BUSCADOR.minimo) { cerrarSugerencias(); return; }
   temporizadorBusqueda = setTimeout(async () => {
     entradaDireccion.closest('.buscador').classList.add('is-buscando');
@@ -625,11 +668,11 @@ entradaDireccion.addEventListener('input', () => {
       const lista = await buscarDireccion(texto);
       if (entradaDireccion.value.trim() !== texto) return;   // el usuario siguió escribiendo
       mostrarSugerencias(lista);
-      if (!lista.length) avisar('No encontramos esa dirección. Prueba con calle, número y comuna, o toca tu sector en el mapa.');
+      if (!lista.length) direccionNoEncontrada(texto, 'No encontramos esa dirección. Prueba con calle, número y comuna, o toca en el mapa el punto aproximado: te enviaremos lo que escribiste para revisarlo.');
     } catch (e) {
       if (e.name === 'AbortError') return;
       cerrarSugerencias();
-      avisar('No pudimos buscar la dirección en este momento. Toca tu sector en el mapa o coordina por WhatsApp.');
+      direccionNoEncontrada(texto, 'No pudimos buscar la dirección en este momento. Toca en el mapa el punto aproximado o coordina por WhatsApp: enviaremos lo que escribiste.');
     } finally {
       entradaDireccion.closest('.buscador').classList.remove('is-buscando');
     }
@@ -651,11 +694,29 @@ listaSugerencias.addEventListener('pointerdown', e => {
 });
 entradaDireccion.addEventListener('blur', () => setTimeout(cerrarSugerencias, 150));
 
+/* Dirección que el buscador no encontró: se guarda tal cual para el mensaje de WhatsApp */
+function direccionNoEncontrada(texto, aviso) {
+  estadoTraslado.textoEscrito = texto;
+  // una ubicación encontrada antes ya no corresponde a lo que se escribió
+  if (estadoTraslado.direccion) {
+    const { textoEscrito } = estadoTraslado;
+    if (mapaListo) { resaltarZona(null); mapa.closePopup(); }
+    Object.assign(estadoTraslado, TRASLADO_VACIO, { textoEscrito });
+    ponerMarcador(null);
+    $('#resCosto').textContent = 'Por confirmar'; $('#resLugar').textContent = 'Ubicación por confirmar';
+    $('#hintMapa').textContent = 'Toca en el mapa el punto aproximado de tu evento.';
+  }
+  $('#lugar').value = texto;
+  avisar(aviso);
+  calcular();
+}
+
 async function elegirSugerencia(i) {
   const s = sugerencias[i];
   if (!s) return;
   const direccion = s.detalle ? `${s.principal}, ${s.detalle}` : s.principal;
   entradaDireccion.value = direccion;
+  estadoTraslado.textoEscrito = '';
   cerrarSugerencias();
   avisar('');
   medir('direccion-buscada');
@@ -764,14 +825,18 @@ function calcular() {
     ? (c.tamano === null ? 'Más de 100 personas' : `Servicio · ${c.tamano} personas`)
     : 'Combinación';
   $('#cSub').textContent = !c.completo ? '—' : (c.tamano === null ? 'A cotizar' : clp(c.base));
-  $('#sectorCotizacion').textContent = estadoTraslado.modo === 'zona' ? `${estadoTraslado.zona} · traslado ${clp(estadoTraslado.costo)}` : 'Por confirmar · elige tu sector en el mapa o coordina por WhatsApp';
+  $('#sectorCotizacion').textContent = textoSectorCotizacion();
   $('#cExtra').textContent = !c.completo ? '—' : clp(c.costoExtras);
+  const conExtra = estadoTraslado.modo === 'cercana';
   $('#cTraslado').textContent = !c.completo ? '—'
-    : (estadoTraslado.fueraRango ? 'Por confirmar'
-      : (estadoTraslado.definido ? clp(c.traslado) : 'Por confirmar'));
+    : (estadoTraslado.fueraRango ? 'Por cotizar'
+      : (estadoTraslado.definido ? clp(c.traslado) + (conExtra ? ' + extra' : '') : 'Por confirmar'));
   $('#cTotal').textContent = !c.completo ? '—' : (c.tamano === null ? 'A cotizar' : clp(c.total));
-  $('#cTotalPendiente').hidden = !c.completo || (estadoTraslado.definido && !estadoTraslado.fueraRango);
-  $('#cTotalNota').textContent = c.tamano === null ? 'Escríbenos por WhatsApp para cotizar más de 100 personas.' : (!estadoTraslado.definido || estadoTraslado.fueraRango ? 'El subtotal no incluye un traslado confirmado.' : 'Incluye traslado.');
+  $('#cTotalPendiente').hidden = !c.completo || (estadoTraslado.definido && !estadoTraslado.fueraRango && !conExtra);
+  $('#cTotalPendiente').textContent = conExtra ? '+ extra por distancia por confirmar' : '+ traslado por confirmar';
+  $('#cTotalNota').textContent = c.tamano === null ? 'Escríbenos por WhatsApp para cotizar más de 100 personas.'
+    : (conExtra ? `Incluye la tarifa de ${estadoTraslado.zona}; el extra por distancia se confirma por WhatsApp.`
+      : (!estadoTraslado.definido || estadoTraslado.fueraRango ? 'El subtotal no incluye un traslado confirmado.' : 'Incluye traslado.'));
 
   $('#btnWhats').classList.toggle('btn--off', !c.completo);
   $('#btnWhatsBarra').classList.toggle('btn--off', !c.completo);
@@ -782,12 +847,27 @@ function calcular() {
 /* ------------------------------------------------------------
    Mensajes de WhatsApp
 ------------------------------------------------------------ */
+function textoSectorCotizacion() {
+  const t = estadoTraslado;
+  if (t.modo === 'zona') return `${t.zona} · traslado ${clp(t.costo)}`;
+  if (t.modo === 'cercana') return `Cerca de ${t.zona} (a ${textoKm(t.distanciaKm)}) · traslado ${clp(t.costo)} + extra por distancia`;
+  if (t.modo === 'fuera') return t.zona ? `Fuera de zona, a ${textoKm(t.distanciaKm)} de ${t.zona} · traslado por cotizar` : 'Fuera de zona · traslado por cotizar';
+  if (t.textoEscrito) return `“${t.textoEscrito}” · no la encontramos, marca el punto en el mapa o la revisamos por WhatsApp`;
+  return 'Por confirmar · escribe tu dirección, elige tu sector en el mapa o coordina por WhatsApp';
+}
+/* Bloque de ubicación del mensaje: categoría clara para quien cotiza, más un enlace al punto exacto. */
 function mensajeUbicacion() {
-  const tarifa = estadoTraslado.definido && !estadoTraslado.fueraRango ? clp(estadoTraslado.costo) : 'por confirmar';
-  const direccion = estadoTraslado.direccion ? `📍 Dirección: ${estadoTraslado.direccion}\n` : '';
-  if (estadoTraslado.modo === 'zona') return `${direccion}📍 Sector: ${estadoTraslado.zona} · Traslado: ${tarifa} (confirmar ubicación exacta)`;
-  if (estadoTraslado.fueraRango) return `${direccion}📍 Fuera de las zonas del mapa · Traslado: por confirmar`;
-  return '📍 Ubicación: por confirmar · Traslado: por confirmar';
+  const t = estadoTraslado, L = [];
+  if (t.direccion) L.push(`📍 *Dirección:* ${t.direccion}`);
+  if (t.textoEscrito) L.push(`📝 *Dirección escrita (no encontrada en el mapa):* ${t.textoEscrito}`);
+  if (t.modo === 'zona') L.push(`✅ *En zona:* ${t.zona} · Traslado ${clp(t.costo)}`);
+  else if (t.modo === 'cercana') L.push(`⚠️ *Cerca de zona:* a ${textoKm(t.distanciaKm)} de ${t.zona} · Traslado ${clp(t.costo)} + extra por distancia`);
+  else if (t.modo === 'fuera') L.push(t.zona
+    ? `❌ *Fuera de zona:* a ${textoKm(t.distanciaKm)} de ${t.zona} (zona más cercana) · Traslado por cotizar`
+    : '❌ *Fuera de zona:* traslado por cotizar');
+  else L.push('📍 *Ubicación:* por confirmar · Traslado por confirmar');
+  if (t.punto) L.push(`🗺️ ${t.direccion ? 'Ver en el mapa' : 'Punto marcado en el mapa'}: https://maps.google.com/?q=${t.punto[0].toFixed(5)},${t.punto[1].toFixed(5)}`);
+  return L.join('\n');
 }
 function mensajeCotizacion() {
   const c = cotizacion();
@@ -806,10 +886,11 @@ function mensajeCotizacion() {
   else L.push('*Servicios:* (aún por definir)');
 
   const pendiente = !estadoTraslado.definido || estadoTraslado.fueraRango;
+  const conExtra = estadoTraslado.modo === 'cercana';
   L.push('', `*Servicio · ${c.tamano === null ? 'más de 100' : c.tamano} personas:* ${c.tamano === null ? 'A cotizar' : (c.completo ? clp(c.base) : '—')}`);
   L.push(`*Porciones adicionales:* ${clp(c.costoExtras)}`);
-  L.push(`*Traslado:* ${pendiente ? 'por confirmar' : clp(c.traslado)}`);
-  L.push(`*TOTAL ESTIMADO: ${c.tamano === null ? 'A cotizar' : clp(c.total)}${pendiente ? ' + traslado por confirmar' : ''}*`);
+  L.push(`*Traslado:* ${pendiente ? 'por confirmar' : clp(c.traslado) + (conExtra ? ' + extra por distancia' : '')}`);
+  L.push(`*TOTAL ESTIMADO: ${c.tamano === null ? 'A cotizar' : clp(c.total)}${pendiente ? ' + traslado por confirmar' : (conExtra ? ' + extra por distancia' : '')}*`);
 
   if ($('#nota').value.trim()) L.push('', `_Comentario:_ ${$('#nota').value.trim()}`);
   L.push('', 'Quedo atento/a para confirmar la ubicación, la tarifa y la fecha.');
@@ -908,16 +989,21 @@ function restaurarEstado() {
     if (e.hora != null) $('#hora').value = e.hora;
     if (e.tipo != null) $('#tipo').value = e.tipo;
     if (e.nota != null) $('#nota').value = e.nota;
-    if (e.traslado && e.traslado.direccion) $('#direccion').value = e.traslado.direccion;
-    if (e.traslado && e.traslado.indice >= 0 && ZONAS_TRASLADO[e.traslado.indice]) {
+    if (e.traslado && (e.traslado.direccion || e.traslado.textoEscrito)) $('#direccion').value = e.traslado.direccion || e.traslado.textoEscrito;
+    if (e.traslado && e.traslado.modo === 'cercana' && ZONAS_TRASLADO[e.traslado.indice]) {
+      resaltarZona(ZONAS_TRASLADO[e.traslado.indice]);
+      $('#lugar').value = e.traslado.lugar || '';
+      $('#resLugar').textContent = `Cerca de ${e.traslado.zona} · a ${textoKm(e.traslado.distanciaKm)} de la zona`;
+      $('#resCosto').innerHTML = `${clp(e.traslado.costo)} <small>+ extra</small>`;
+    } else if (e.traslado && e.traslado.indice >= 0 && ZONAS_TRASLADO[e.traslado.indice]) {
       resaltarZona(ZONAS_TRASLADO[e.traslado.indice]);
       $('#lugar').value = e.traslado.direccion || e.traslado.lugar || '';
       $('#resLugar').textContent = `${e.traslado.zona} · traslado ${clp(e.traslado.costo)}`;
       $('#resCosto').textContent = clp(e.traslado.costo);
     } else if (e.traslado && e.traslado.fueraRango) {
       $('#lugar').value = e.traslado.direccion || '';
-      $('#resLugar').textContent = 'Fuera de nuestras zonas';
-      $('#resCosto').textContent = 'Por confirmar';
+      $('#resLugar').textContent = e.traslado.zona ? `Fuera de nuestras zonas · a ${textoKm(e.traslado.distanciaKm)} de ${e.traslado.zona}` : 'Fuera de nuestras zonas';
+      $('#resCosto').textContent = 'Por cotizar';
     }
   } catch (e) {}
 }
