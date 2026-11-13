@@ -1053,3 +1053,11 @@ body.visor-abierto{ overflow:hidden; }
   .grid2.detalle{ grid-template-columns:1fr; }
   .detalle > .field, .detalle > .field--tercio, .detalle > .field--tercio:nth-of-type(5){ grid-column:1 / -1; }
 }
+
+/* Botón de descarga del PDF, dentro del resumen oscuro */
+.btn--pdf{
+  margin-top:.7rem; gap:.5rem; background:transparent; color:#fff;
+  border:1.5px solid rgba(255,255,255,.28); box-shadow:none;
+}
+.btn--pdf:hover{ background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.6); color:#fff; box-shadow:none; }
+.btn--pdf:disabled{ cursor:progress; opacity:.7; }

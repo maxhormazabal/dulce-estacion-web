@@ -911,6 +911,7 @@ function calcular() {
       : (!estadoTraslado.definido || estadoTraslado.fueraRango ? 'El subtotal no incluye un traslado confirmado.' : 'Incluye traslado.'));
 
   $('#btnWhats').classList.toggle('btn--off', !c.completo);
+  $('#btnPdf').classList.toggle('btn--off', !c.completo);
   $('#btnWhatsBarra').classList.toggle('btn--off', !c.completo);
   $('#cTotalBarra').textContent = !c.completo ? '—' : (c.tamano === null ? 'A cotizar' : clp(c.total));
   actualizarBorrar();   // la dirección pudo cambiar por GPS, mapa o reinicio
@@ -939,6 +940,7 @@ function mensajeCotizacion() {
   const L = [];
 
   L.push('¡Hola *Dulce Estación*! 👋 Quiero cotizar mi evento:', '');
+  L.push(`*N° de cotización:* ${numeroCotizacion()}`);
   if ($('#nombre').value.trim())    L.push(`*Reserva:* ${$('#nombre').value.trim()}`);
   if ($('#festejado').value.trim()) L.push(`*Festejado/a:* ${$('#festejado').value.trim()}`);
   L.push(`*Tipo de evento:* ${$('#tipo').value}`);
@@ -962,14 +964,17 @@ function mensajeCotizacion() {
   return L.join('\n');
 }
 
+/* Cotización incompleta: lleva a los servicios y los sacude para llamar la atención */
+function cotizacionIncompleta() {
+  if (cotizacionValida(maquinasSeleccionadas(), tamano, cantidadesExtra)) return false;
+  $('#promoPicker').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  $$('#promoPicker .promopick').forEach(p => p.animate(
+    [{ transform: 'translateX(0)' }, { transform: 'translateX(-5px)' }, { transform: 'translateX(5px)' }, { transform: 'translateX(0)' }],
+    { duration: 320 }));
+  return true;
+}
 function enviarWhatsapp() {
-  if (!cotizacionValida(maquinasSeleccionadas(), tamano, cantidadesExtra)) {   // cotización inválida
-    $('#promoPicker').scrollIntoView({ behavior: 'smooth', block: 'center' });
-    $$('#promoPicker .promopick').forEach(p => p.animate(
-      [{ transform: 'translateX(0)' }, { transform: 'translateX(-5px)' }, { transform: 'translateX(5px)' }, { transform: 'translateX(0)' }],
-      { duration: 320 }));
-    return;
-  }
+  if (cotizacionIncompleta()) return;
   if (!$('#sinFecha').checked && !$('#fecha').value) {   // fecha obligatoria
     $('#fecha').scrollIntoView({ behavior: 'smooth', block: 'center' });
     $('#fecha').focus();
@@ -979,11 +984,59 @@ function enviarWhatsapp() {
   open(waLink(mensajeCotizacion()), '_blank');
 }
 $('#btnWhats').addEventListener('click', enviarWhatsapp);
+
+/* ------------------------------------------------------------
+   N° de cotización: el mismo en el PDF y en el mensaje de WhatsApp,
+   para que el pedido se pueda encontrar después. Se renueva al empezar de nuevo.
+------------------------------------------------------------ */
+const CLAVE_NUMERO = 'dulce-estacion-numero';
+let numeroActual = null;
+function numeroCotizacion() {
+  if (numeroActual) return numeroActual;
+  try { numeroActual = localStorage.getItem(CLAVE_NUMERO); } catch (e) {}
+  if (!numeroActual) {
+    const d = new Date(), dos = n => String(n).padStart(2, '0');
+    numeroActual = `DE-${d.getFullYear()}${dos(d.getMonth() + 1)}${dos(d.getDate())}-${1000 + Math.floor(Math.random() * 9000)}`;
+    try { localStorage.setItem(CLAVE_NUMERO, numeroActual); } catch (e) {}
+  }
+  return numeroActual;
+}
+
+/* PDF: jsPDF y el armado del documento se descargan solo al tocar el botón */
+const JSPDF_URL = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+let pdfPromesa = null;
+function cargarGeneradorPdf() {
+  if (!pdfPromesa) {
+    pdfPromesa = (async () => {
+      if (!window.jspdf) await cargarScript(JSPDF_URL);
+      if (typeof generarPdfCotizacion !== 'function') await cargarScript('cotizacion-pdf.js?v=2');
+    })().catch(e => { pdfPromesa = null; throw e; });
+  }
+  return pdfPromesa;
+}
+async function descargarPdf() {
+  if (cotizacionIncompleta()) return;
+  const boton = $('#btnPdf'), texto = $('span', boton);
+  boton.disabled = true; texto.textContent = 'Generando PDF…';
+  try {
+    await cargarGeneradorPdf();
+    await generarPdfCotizacion();
+    medir('descargar-pdf');
+    texto.textContent = 'Descargar cotización (PDF)';
+  } catch (e) {
+    texto.textContent = 'No se pudo generar. Intenta de nuevo';
+    setTimeout(() => { texto.textContent = 'Descargar cotización (PDF)'; }, 3500);
+  } finally {
+    boton.disabled = false;
+  }
+}
+$('#btnPdf').addEventListener('click', descargarPdf);
 $('#btnWhatsBarra').addEventListener('click', enviarWhatsapp);
 
 /* Empezar de nuevo: limpia el avance guardado y resetea el cotizador. */
 $('#btnReiniciar').addEventListener('click', () => {
-  try { localStorage.removeItem(CLAVE_ESTADO); } catch (e) {}
+  try { localStorage.removeItem(CLAVE_ESTADO); localStorage.removeItem(CLAVE_NUMERO); } catch (e) {}
+  numeroActual = null;
   $$('#promoPicker input').forEach(i => { i.checked = false; i.closest('.promopick').classList.remove('is-on'); });
   tamano = 40;
   selectorPersonas.value = '40';

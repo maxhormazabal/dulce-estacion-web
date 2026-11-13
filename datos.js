@@ -22,6 +22,11 @@ const CONFIG = {
   // Más lejos, el traslado queda "por cotizar".
   kmZonaCercana: 3,
 
+  // PDF de la cotización: días de validez y datos de contacto del pie
+  validezCotizacionDias: 15,
+  correo: 'Dulceestacion.contacto@gmail.com',
+  web: 'dulcestacion.cl',
+
 };
 
 /* ------------------------------------------------------------
