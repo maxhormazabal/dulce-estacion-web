@@ -1021,3 +1021,14 @@ body.visor-abierto{ overflow:hidden; }
 .ubicacion .hint{ margin:.6rem 0 .3rem; }
 .btn-texto{ background:none; border:0; padding:.3rem 0; font:500 .88rem var(--f-body); color:var(--rojo-osc); text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
 @media (max-width:560px){ .ubicacion #mapa{ height:280px; min-height:280px; } }
+
+/* Botón X del buscador de dirección */
+.buscador__caja input{ padding-right:2.9rem; }
+.buscador__borrar{
+  position:absolute; right:.45rem; top:50%; transform:translateY(-50%);
+  width:36px; height:36px; display:grid; place-items:center; padding:0;
+  border:0; border-radius:50%; background:transparent; color:var(--gris); cursor:pointer;
+}
+.buscador__borrar:hover, .buscador__borrar:focus-visible{ background:var(--rojo-claro); color:var(--rojo-osc); }
+.buscador__borrar[hidden]{ display:none; }
+.buscador.is-buscando .buscador__caja::after{ right:2.9rem; }

@@ -656,7 +656,31 @@ async function buscarDireccion(texto) {
   return lista;
 }
 
+/* Botón X: vacía el buscador y quita la ubicación elegida */
+function actualizarBorrar() {
+  const boton = $('#btnBorrarDireccion'), campo = $('#direccion');
+  if (boton && campo) boton.hidden = !campo.value;
+}
+function borrarDireccion() {
+  clearTimeout(temporizadorBusqueda);
+  if (busquedaEnCurso) busquedaEnCurso.abort();
+  cerrarSugerencias();
+  avisar('');
+  if (mapaListo) { resaltarZona(null); mapa.closePopup(); }
+  Object.assign(estadoTraslado, TRASLADO_VACIO);
+  ponerMarcador(null);
+  entradaDireccion.value = '';
+  $('#lugar').value = '';
+  $('#resCosto').textContent = '—';
+  $('#resLugar').textContent = 'Ubicación por confirmar';
+  $('#hintMapa').textContent = 'Escribe la dirección del evento, usa tu ubicación o toca el mapa.';
+  calcular();
+  entradaDireccion.focus();
+}
+$('#btnBorrarDireccion').addEventListener('click', borrarDireccion);
+
 entradaDireccion.addEventListener('input', () => {
+  actualizarBorrar();
   clearTimeout(temporizadorBusqueda);
   const texto = entradaDireccion.value.trim();
   avisar('');
@@ -887,6 +911,7 @@ function calcular() {
   $('#btnWhats').classList.toggle('btn--off', !c.completo);
   $('#btnWhatsBarra').classList.toggle('btn--off', !c.completo);
   $('#cTotalBarra').textContent = !c.completo ? '—' : (c.tamano === null ? 'A cotizar' : clp(c.total));
+  actualizarBorrar();   // la dirección pudo cambiar por GPS, mapa o reinicio
   guardarEstado();
 }
 

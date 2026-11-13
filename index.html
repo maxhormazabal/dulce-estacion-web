@@ -36,7 +36,7 @@
 <link rel="preload" href="fonts/montserrat.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/playfair-display.woff2" as="font" type="font/woff2" crossorigin>
 <!-- El ?v= obliga al navegador a recargar el archivo: si editas y no ves el cambio, súbele el número -->
-<link rel="stylesheet" href="estilos.css?v=71">
+<link rel="stylesheet" href="estilos.css?v=72">
 </head>
 <body>
 
@@ -218,7 +218,10 @@
             <div class="buscador__caja">
               <input type="search" id="direccion" placeholder="Ej: Barros Arana 1000, Concepción" autocomplete="off" enterkeyhint="search"
                 role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="sugerencias">
-              <ul class="buscador__lista" id="sugerencias" role="listbox" aria-label="Direcciones sugeridas" hidden></ul>
+              <button type="button" class="buscador__borrar" id="btnBorrarDireccion" aria-label="Borrar dirección" hidden>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+            </button>
+            <ul class="buscador__lista" id="sugerencias" role="listbox" aria-label="Direcciones sugeridas" hidden></ul>
             </div>
             <p class="buscador__aviso" id="avisoBuscador" role="status" aria-live="polite" hidden></p>
           </div>
@@ -699,7 +702,7 @@
 <script src="nav.js?v=52"></script>
 <script src="datos.js?v=59"></script>
 <script src="medicion.js?v=1"></script>
-<script src="script.js?v=60"></script>
+<script src="script.js?v=61"></script>
 <script src="portada-prueba.js?v=55"></script>
 </body>
 </html>
