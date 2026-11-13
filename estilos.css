@@ -1032,3 +1032,9 @@ body.visor-abierto{ overflow:hidden; }
 .buscador__borrar:hover, .buscador__borrar:focus-visible{ background:var(--rojo-claro); color:var(--rojo-osc); }
 .buscador__borrar[hidden]{ display:none; }
 .buscador.is-buscando .buscador__caja::after{ right:2.9rem; }
+
+/* Ajustes de escritorio del paso 3 */
+.ubicacion{ margin-bottom:2.2rem; }
+.ubicacion .hint:empty{ display:none; }
+.btn-gps[hidden] + .ubicacion__mapa{ margin-top:1rem; }
+@media (min-width:961px){ .ubicacion #mapa{ height:400px; min-height:400px; } }

@@ -499,6 +499,7 @@ function cargarMapa() {
 function initMapa() {
   if (mapaListo) return;
   mapa = L.map('mapa', {
+    zoomSnap: 0.5,   // permite encuadrar todas las zonas sin que queden demasiado chicas
     scrollWheelZoom: !entradaTactil.matches,
     gestureHandling: entradaTactil.matches && soportaGestos(),
     gestureHandlingOptions: {
@@ -509,7 +510,7 @@ function initMapa() {
         scrollMac: 'Usa ⌘ + rueda para hacer zoom'
       }
     }
-  }).setView([CONFIG.base.lat, CONFIG.base.lng], 11);
+  }).fitBounds(L.latLngBounds(ZONAS_TRASLADO.flatMap(z => z.poligono)), { padding: [6, 6] });
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors', maxZoom: 19,
     className: 'mapa-fondo'
@@ -554,7 +555,7 @@ function initMapa() {
 function estiloSector(zona, activo) {
   const color = COLOR_ZONA[zona.zona];
   return activo
-    ? { color, fillColor: color, weight: 3, opacity: 1, fillOpacity: .42 }
+    ? { color, fillColor: color, weight: 3, opacity: 1, fillOpacity: .32 }
     : { color, fillColor: color, weight: 1.2, opacity: .8, fillOpacity: .22 };
 }
 /* Leyenda de tarifas: una fila por precio, con los sectores de esa zona. */
@@ -673,7 +674,7 @@ function borrarDireccion() {
   $('#lugar').value = '';
   $('#resCosto').textContent = '—';
   $('#resLugar').textContent = 'Ubicación por confirmar';
-  $('#hintMapa').textContent = 'Escribe la dirección del evento, usa tu ubicación o toca el mapa.';
+  $('#hintMapa').textContent = '';
   calcular();
   entradaDireccion.focus();
 }
@@ -794,7 +795,8 @@ function usarUbicacionActual() {
       : 'No pudimos obtener tu ubicación. Escribe la dirección o toca el punto en el mapa.');
   }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
 }
-if (botonGps && 'geolocation' in navigator) {
+// Solo en celulares y tablets: en computador la ubicación sale del wifi o la IP y puede errar por kilómetros
+if (botonGps && 'geolocation' in navigator && entradaTactil.matches) {
   botonGps.hidden = false;
   botonGps.addEventListener('click', usarUbicacionActual);
 }
@@ -993,7 +995,7 @@ $('#btnReiniciar').addEventListener('click', () => {
   $('#sinFecha').checked = false; $('#fecha').disabled = false;
   $('#tipo').value = 'Cumpleaños';
   $('#resCosto').textContent = '—'; $('#resLugar').textContent = 'Ubicación por confirmar';
-  $('#hintMapa').textContent = 'Escribe la dirección del evento o toca tu sector en el mapa.';
+  $('#hintMapa').textContent = '';
   pintarExtras();
   calcular();
 });

@@ -36,7 +36,7 @@
 <link rel="preload" href="fonts/montserrat.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/playfair-display.woff2" as="font" type="font/woff2" crossorigin>
 <!-- El ?v= obliga al navegador a recargar el archivo: si editas y no ves el cambio, súbele el número -->
-<link rel="stylesheet" href="estilos.css?v=72">
+<link rel="stylesheet" href="estilos.css?v=73">
 </head>
 <body>
 
@@ -211,7 +211,7 @@
 
         <div class="ubicacion" id="traslado">
           <h3 class="block-title">3. ¿Dónde es tu evento?</h3>
-          <p class="paso-nota">Con la ubicación calculamos el traslado. Escribe la dirección, usa tu ubicación o toca el punto en el mapa.</p>
+          <p class="paso-nota">Con la ubicación calculamos el traslado. Escribe la dirección o marca el punto en el mapa.</p>
 
           <div class="buscador">
             <label class="buscador__campo" for="direccion">Dirección del evento</label>
@@ -240,7 +240,7 @@
             <div><span>Traslado</span><p id="resLugar">Ubicación por confirmar</p></div>
             <b id="resCosto">—</b>
           </div>
-          <p class="hint" id="hintMapa" role="status" aria-live="polite">Escribe la dirección del evento, usa tu ubicación o toca el mapa.</p>
+          <p class="hint" id="hintMapa" role="status" aria-live="polite"></p>
           <button type="button" class="btn-texto" id="btnCoordinarUbicacion">Prefiero coordinar la ubicación por WhatsApp</button>
           <input type="hidden" id="lugar">
         </div>
@@ -702,7 +702,7 @@
 <script src="nav.js?v=52"></script>
 <script src="datos.js?v=59"></script>
 <script src="medicion.js?v=1"></script>
-<script src="script.js?v=61"></script>
+<script src="script.js?v=63"></script>
 <script src="portada-prueba.js?v=55"></script>
 </body>
 </html>
