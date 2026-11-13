@@ -203,5 +203,6 @@ async function generarPdfCotizacion() {
   }
 
   pie();
-  doc.save(`Cotizacion-Dulce-Estacion-${numero}.pdf`);
+  doc.setProperties({ title: `Cotización ${numero} · Dulce Estación`, author: 'Dulce Estación' });
+  return { doc, nombre: `Cotizacion-Dulce-Estacion-${numero}.pdf` };
 }

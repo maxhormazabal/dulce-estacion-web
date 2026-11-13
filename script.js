@@ -1009,28 +1009,42 @@ function cargarGeneradorPdf() {
   if (!pdfPromesa) {
     pdfPromesa = (async () => {
       if (!window.jspdf) await cargarScript(JSPDF_URL);
-      if (typeof generarPdfCotizacion !== 'function') await cargarScript('cotizacion-pdf.js?v=2');
+      if (typeof generarPdfCotizacion !== 'function') await cargarScript('cotizacion-pdf.js?v=3');
     })().catch(e => { pdfPromesa = null; throw e; });
   }
   return pdfPromesa;
 }
-async function descargarPdf() {
+/* El PDF se abre en una pestaña nueva. La pestaña se abre en el mismo toque
+   (si se abre después de esperar, el navegador la bloquea) y luego recibe el PDF.
+   Si el navegador la bloquea igual, el PDF se descarga. */
+const TEXTO_BOTON_PDF = 'Ver cotización en PDF';
+async function abrirPdf() {
   if (cotizacionIncompleta()) return;
   const boton = $('#btnPdf'), texto = $('span', boton);
+  const pestana = window.open('', '_blank');
+  if (pestana) {
+    try {
+      pestana.document.title = 'Generando tu cotización…';
+      pestana.document.body.innerHTML = '<p style="font:16px/1.5 system-ui,sans-serif;color:#6E6660;padding:2rem;text-align:center">Generando tu cotización…</p>';
+    } catch (e) {}
+  }
   boton.disabled = true; texto.textContent = 'Generando PDF…';
   try {
     await cargarGeneradorPdf();
-    await generarPdfCotizacion();
-    medir('descargar-pdf');
-    texto.textContent = 'Descargar cotización (PDF)';
+    const { doc, nombre } = await generarPdfCotizacion();
+    if (pestana && !pestana.closed) pestana.location.href = doc.output('bloburl');
+    else doc.save(nombre);
+    medir('ver-pdf');
+    texto.textContent = TEXTO_BOTON_PDF;
   } catch (e) {
+    if (pestana && !pestana.closed) pestana.close();
     texto.textContent = 'No se pudo generar. Intenta de nuevo';
-    setTimeout(() => { texto.textContent = 'Descargar cotización (PDF)'; }, 3500);
+    setTimeout(() => { texto.textContent = TEXTO_BOTON_PDF; }, 3500);
   } finally {
     boton.disabled = false;
   }
 }
-$('#btnPdf').addEventListener('click', descargarPdf);
+$('#btnPdf').addEventListener('click', abrirPdf);
 $('#btnWhatsBarra').addEventListener('click', enviarWhatsapp);
 
 /* Empezar de nuevo: limpia el avance guardado y resetea el cotizador. */
